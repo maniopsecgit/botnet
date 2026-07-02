@@ -7,7 +7,6 @@
 # Run as root on a clean Debian/Ubuntu server.
 # =============================================================================
 
-set -e
 
 if [ "$EUID" -ne 0 ]; then
     echo "[-] Must run as root. Use: sudo $0"
